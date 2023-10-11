@@ -1,0 +1,145 @@
+close all
+clear all
+clc
+
+% Plot One side of a cube
+[Y,Z] = meshgrid(-0.5:0.01:0.5,0:0.01:0.5);
+sizeMat = size(Y);
+X = repmat(0.5,sizeMat(1),sizeMat(2));
+%oneSideOfCube_h = surf(X,Y,Z);
+
+% Combine one surface as a point cloud
+cubePoints = [X(:),Y(:),Z(:)];      
+         
+% Plot the cubes point cloud         
+% cubePoints = cubePoints + repmat([0,0,0],size(cubePoints,1),1);
+cube_h = plot3(cubePoints(:,1),cubePoints(:,2),cubePoints(:,3),'b.');
+axis equal
+
+robot = LinearUR3();
+
+%% Create ellipsoids around robot links
+% Base
+centerPoint = [0,0.1,0];
+radii = [0.1,0.1,0.125];
+[X,Y,Z] = ellipsoid( centerPoint(1), centerPoint(2), centerPoint(3), radii(1), radii(2), radii(3) );
+robot.model.points{1} = [X(:),Y(:),Z(:)];
+warning off
+robot.model.faces{1} = delaunay(robot.model.points{1});
+
+% Prismatic Joint
+centerPoint1 = [0,0.1,0];
+radii1 = [0.01,0.01,0.01];
+[X,Y,Z] = ellipsoid( centerPoint1(1), centerPoint1(2), centerPoint1(3), radii1(1), radii1(2), radii1(3) );
+robot.model.points{2} = [X(:),Y(:),Z(:)];
+warning off
+robot.model.faces{2} = delaunay(robot.model.points{2}); 
+
+% Link 1
+centerPoint2 = [0,0,0.05];
+radii2 = [0.1,0.1,0.125];
+[X,Y,Z] = ellipsoid( centerPoint2(1), centerPoint2(2), centerPoint2(3), radii2(1), radii2(2), radii2(3) );
+robot.model.points{3} = [X(:),Y(:),Z(:)];
+warning off
+robot.model.faces{3} = delaunay(robot.model.points{3}); 
+
+% Link 2
+centerPoint3 = [-0.05,0,0];
+radii3 = [0.125,0.1,0.1];
+[X,Y,Z] = ellipsoid( centerPoint3(1), centerPoint3(2), centerPoint3(3), radii3(1), radii3(2), radii3(3) );
+robot.model.points{4} = [X(:),Y(:),Z(:)];
+warning off
+robot.model.faces{4} = delaunay(robot.model.points{4}); 
+
+% Link 3
+centerPoint4 = [0,0,0];
+radii4 = [0.15,0.1,0.1];
+[X,Y,Z] = ellipsoid( centerPoint4(1), centerPoint4(2), centerPoint4(3), radii4(1), radii4(2), radii4(3) );
+robot.model.points{5} = [X(:),Y(:),Z(:)];
+warning off
+robot.model.faces{5} = delaunay(robot.model.points{5}); 
+
+% Link 4
+centerPoint5 = [0,0,0];
+radii5 = [0.1,0.125,0.1];
+[X,Y,Z] = ellipsoid( centerPoint5(1), centerPoint5(2), centerPoint5(3), radii5(1), radii5(2), radii5(3) );
+robot.model.points{6} = [X(:),Y(:),Z(:)];
+warning off
+robot.model.faces{6} = delaunay(robot.model.points{6});
+
+% Link 5
+centerPoint6 = [0,0,0];
+radii6 = [0.08,0.08,0.125];
+[X,Y,Z] = ellipsoid( centerPoint6(1), centerPoint6(2), centerPoint6(3), radii6(1), radii6(2), radii6(3) );
+robot.model.points{7} = [X(:),Y(:),Z(:)];
+warning off
+robot.model.faces{7} = delaunay(robot.model.points{7}); 
+
+% Link 6
+centerPoint7 = [0,0,0];
+radii7 = [0.1,0.1,0.11];
+[X,Y,Z] = ellipsoid( centerPoint7(1), centerPoint7(2), centerPoint7(3), radii7(1), radii7(2), radii7(3) );
+robot.model.points{8} = [X(:),Y(:),Z(:)];
+warning off
+robot.model.faces{8} = delaunay(robot.model.points{8});
+
+
+workspace = [-1 1 -1 1 0 1];
+scale = 0.1;
+q = [0,0,pi/2,0,0,0,0];
+robot.model.plot(q,'workspace',workspace,'scale',scale);
+camlight
+%robot.teach
+%keyboard
+
+% 2.10
+q1 = [0,0,0,0,0,0,0];
+q2 = [0,0,pi/2,0,0,0,0];
+steps = 50;
+traj = jtraj(q1,q2,steps)
+
+L = robot.model.links
+tr = zeros(4,4,robot.model.n+1);
+tr(:,:,1) = robot.model.base.T;
+
+% Go through each ellipsoid
+for i = 1 : steps
+    robot.model.animate(traj(i,:));
+    for j = 1 : 7
+        tr(:,:,j+1) = tr(:,:,j) * trotz(traj(i,j)) * transl(0,0,L(j).d) * transl(L(j).a,0,0) * trotx(L(j).alpha);
+        cubePointsAndOnes = (inv(tr(:,:,j)) * [cubePoints,ones(size(cubePoints,1),1)]')';
+        updatedCubePoints = cubePointsAndOnes(:,1:3)
+        if j == 1
+            algebraicDist = GetAlgebraicDist(updatedCubePoints, centerPoint1, radii1);
+        elseif j == 2
+            algebraicDist = GetAlgebraicDist(updatedCubePoints, centerPoint2, radii2);
+        elseif j == 3
+            algebraicDist = GetAlgebraicDist(updatedCubePoints, centerPoint3, radii3);
+        elseif j == 4
+            algebraicDist = GetAlgebraicDist(updatedCubePoints, centerPoint4, radii4);
+        elseif j == 5
+            algebraicDist = GetAlgebraicDist(updatedCubePoints, centerPoint5, radii5);
+        elseif j == 6
+            algebraicDist = GetAlgebraicDist(updatedCubePoints, centerPoint6, radii6);
+           % dist6 = algebraicDist
+        elseif j == 7
+            algebraicDist = GetAlgebraicDist(updatedCubePoints, centerPoint7, radii7);
+        %elseif j == 8
+           % algebraicDist = GetAlgebraicDist(updatedCubePoints, centerPoint8, radii8);
+        end
+        pointsInside = find(algebraicDist < 1);
+        disp(['2.10: There are ', num2str(size(pointsInside,1)),' points inside the ',num2str(j),'th ellipsoid']);
+        if pointsInside >= 1
+        disp('UNSAFE: Robot stopped')
+        pause
+        break
+        end
+    end
+end
+
+function algebraicDist = GetAlgebraicDist(points, centerPoint, radii)
+
+algebraicDist = ((points(:,1)-centerPoint(1))/radii(1)).^2 ...
+              + ((points(:,2)-centerPoint(2))/radii(2)).^2 ...
+              + ((points(:,3)-centerPoint(3))/radii(3)).^2;
+end
